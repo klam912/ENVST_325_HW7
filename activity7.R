@@ -188,3 +188,50 @@ ggplot() +
                   ymax=Hi.95), fill=rgb(0.5,0.5,0.5,0.5))+ # uncertainty interval
   theme_classic()+
   labs(x="year", y="Evapotranspiration (in)")
+
+# Homework ----
+# Question 1
+# Transformed CO2 = 1/(CO2 + 1000) --> target variable
+
+ghg$co2_trans <- 1/(ghg$co2 + 1000)
+
+model_q1 <- lm(co2_trans ~ log.age +
+                 log.DIP +
+                 log(mean.depth)+
+                 log.precip+
+                 log.ch4+
+                 Region
+               , data = ghg)
+
+summary(model_q1)
+# Extract the coefficient table
+coef_table <- coef(summary(model_q1))
+
+reg_table <- as.data.frame(coef_table)
+
+# write.csv(reg_table, "reg_table.csv", row.names=TRUE)
+
+# Checking assumptions
+# Isolate standardized residuals (rstandard) and the fitted values from the regression line at each observation (fitted.values) 
+res_q1 <- rstandard(model_q1)
+fit_q1 <- fitted.values(model_q1)
+# qq plot
+qqnorm(res_q1, pch=19, col="grey50")
+qqline(res_q1)
+# shapiro-wilks test: the residuals do not significantly deviate from a normal distribution.
+shapiro.test(res_q1)
+plot(fit_q1,res_q1, pch=19, col="grey50")
+abline(h=0)
+# Create a dataframe
+reg.data_q1 <- data.frame(ghg$co2_trans,
+                       ghg$airTemp,
+                       ghg$log.age,ghg$mean.depth,
+                       ghg$log.DIP,
+                       ghg$log.precip,
+                       ghg$log.surface.area,
+                       ghg$BorealV,
+                       ghg$TropicalV,
+                       ghg$log.ch4)
+
+# make a correlation matrix 
+chart.Correlation(reg.data_q1, histogram=TRUE, pch=19)
