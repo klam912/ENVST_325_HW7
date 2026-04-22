@@ -235,3 +235,173 @@ reg.data_q1 <- data.frame(ghg$co2_trans,
 
 # make a correlation matrix 
 chart.Correlation(reg.data_q1, histogram=TRUE, pch=19)
+
+# Question 3
+#Decompose the evapotranspiration time series for almonds, pistachios, fallow/idle fields, corn, and
+#table grapes. Evaluate differences in the observations, trends, and seasonality of the data between
+#the different crops.
+almond <- ETdat %>% # ET data
+  filter(crop == "Almonds") %>% # only use almond fields
+  group_by(date) %>% # calculate over each date because multiple fields in each date
+  summarise(ET.in = mean(Ensemble.ET, na.rm=TRUE)) # average fields
+
+# almond ET time series
+almond_ts <- ts(almond$ET.in, # data
+                start = c(2016,1), #start year 2016, month 1
+                #first number is unit of time and second is observations within a unit
+                frequency= 12) # frequency of observations in a unit
+# decompose almond ET time series
+almond_dec <- decompose(almond_ts)
+# plot decomposition
+plot(almond_dec)
+
+
+pistachios <- ETdat %>% # ET data
+  filter(crop == "Pistachios") %>% # only use pistachios fields
+  group_by(date) %>% # calculate over each date because multiple fields in each date
+  summarise(ET.in = mean(Ensemble.ET, na.rm=TRUE)) # average fields
+
+# pistachios ET time series
+pistachios_ts <- ts(pistachios$ET.in, # data
+                start = c(2016,1), #start year 2016, month 1
+                #first number is unit of time and second is observations within a unit
+                frequency= 12) # frequency of observations in a unit
+# decompose pistachios ET time series
+pistachios_dec <- decompose(pistachios_ts)
+# plot decomposition
+plot(pistachios_dec)
+
+idle <- ETdat %>% # ET data
+  filter(crop == "Fallow/Idle Cropland") %>% # only use idle fields
+  group_by(date) %>% # calculate over each date because multiple fields in each date
+  summarise(ET.in = mean(Ensemble.ET, na.rm=TRUE)) # average fields
+
+# idle ET time series
+idle_ts <- ts(idle$ET.in, # data
+                    start = c(2016,1), #start year 2016, month 1
+                    #first number is unit of time and second is observations within a unit
+                    frequency= 12) # frequency of observations in a unit
+# decompose idle ET time series
+idle_dec <- decompose(idle_ts)
+# plot decomposition
+plot(idle_dec)
+
+corn <- ETdat %>% # ET data
+  filter(crop == "Corn") %>% # only use corn fields
+  group_by(date) %>% # calculate over each date because multiple fields in each date
+  summarise(ET.in = mean(Ensemble.ET, na.rm=TRUE)) # average fields
+
+# corn ET time series
+corn_ts <- ts(corn$ET.in, # data
+              start = c(2016,1), #start year 2016, month 1
+              #first number is unit of time and second is observations within a unit
+              frequency= 12) # frequency of observations in a unit
+# decompose corn ET time series
+corn_dec <- decompose(corn_ts)
+# plot decomposition
+plot(corn_dec)
+
+table_grapes <- ETdat %>% # ET data
+  filter(crop == "Grapes (Table/Raisin)") %>% # only use grape fields
+  group_by(date) %>% # calculate over each date because multiple fields in each date
+  summarise(ET.in = mean(Ensemble.ET, na.rm=TRUE)) # average fields
+
+# table_grapes ET time series
+grapes_ts <- ts(table_grapes$ET.in, # data
+              start = c(2016,1), #start year 2016, month 1
+              #first number is unit of time and second is observations within a unit
+              frequency= 12) # frequency of observations in a unit
+# decompose corn ET time series
+grapes_dec <- decompose(grapes_ts)
+# plot decomposition
+plot(grapes_dec)
+
+# Question 4
+# Design an autoregressive model for pistachios and fallow/idle fields. Forecast future
+# evapotranspiration for each field so that water managers can include estimates in their planning
+# Pistachios
+# Run an ARIMA model
+pistachios_y <- na.omit(pistachios_ts)
+model_pistachios1 <- arima(pistachios_y , # data 
+                order = c(1,0,0)) # first number is AR order all other numbers get a 0 to keep AR format
+model_pistachios1
+model_pistachios4 <- arima(pistachios_y , # data 
+                order = c(4,0,0)) # first number is AR order all other numbers get a 0 to keep AR format
+model_pistachios4
+# calculate fit
+AR_fit1 <- pistachios_y - residuals(model_pistachios1) 
+AR_fit4 <- pistachios_y - residuals(model_pistachios4)
+#plot data
+plot(pistachios_y)
+# plot fit
+points(AR_fit1, type = "l", col = "tomato3", lty = 2, lwd=2)
+points(AR_fit4, type = "l", col = "darkgoldenrod4", lty = 2, lwd=2)
+legend("topleft", c("data","AR1","AR4"),
+       lty=c(1,2,2), lwd=c(1,2,2), 
+       col=c("black", "tomato3","darkgoldenrod4"),
+       bty="n")
+newPistachios <- forecast(model_pistachios4)
+newPistachios
+#make dataframe for plotting
+newPistachiosF <- data.frame(newPistachios)
+
+# set up dates
+years <- c(rep(2021,4),rep(2022,12), rep(2023,8))
+month <- c(seq(9,12),seq(1,12), seq(1,8))
+newPistachiosF$dateF <- ymd(paste(years,"/",month,"/",1))
+# make a plot with data and predictions including a prediction interval
+ggplot() +
+  geom_line(data = pistachios, aes(x = ymd(date), y = ET.in))+
+  xlim(ymd(pistachios$date[1]),newPistachiosF$dateF[24])+  # Plotting original data
+  geom_line(data = newPistachiosF, aes(x = dateF, y = Point.Forecast),
+            col="red") +  # Plotting model forecasts
+  geom_ribbon(data=newPistachiosF, 
+              aes(x=dateF,ymin=Lo.95,
+                  ymax=Hi.95), fill=rgb(0.5,0.5,0.5,0.5))+ # uncertainty interval
+  theme_classic()+
+  labs(x="Year", y="Evapotranspiration (in)",
+       title="Predicted average evapotranspiration (in) for pistachios")
+
+# Idle fields
+# Run an ARIMA model
+idle_y <- na.omit(idle_ts)
+model_idle1 <- arima(idle_y , # data 
+                           order = c(1,0,0)) # first number is AR order all other numbers get a 0 to keep AR format
+model_idle1
+model_idle4 <- arima(idle_y , # data 
+                           order = c(4,0,0)) # first number is AR order all other numbers get a 0 to keep AR format
+model_idle4
+# calculate fit
+AR_fit1 <- idle_y - residuals(model_idle1) 
+AR_fit4 <- idle_y - residuals(model_idle4)
+#plot data
+plot(idle_y)
+# plot fit
+points(AR_fit1, type = "l", col = "tomato3", lty = 2, lwd=2)
+points(AR_fit4, type = "l", col = "darkgoldenrod4", lty = 2, lwd=2)
+legend("topleft", c("data","AR1","AR4"),
+       lty=c(1,2,2), lwd=c(1,2,2), 
+       col=c("black", "tomato3","darkgoldenrod4"),
+       bty="n")
+newIdle <- forecast(model_idle4)
+newIdle
+#make dataframe for plotting
+newIdleF <- data.frame(newIdle)
+
+# set up dates
+years <- c(rep(2021,4),rep(2022,12), rep(2023,8))
+month <- c(seq(9,12),seq(1,12), seq(1,8))
+newIdleF$dateF <- ymd(paste(years,"/",month,"/",1))
+# make a plot with data and predictions including a prediction interval
+ggplot() +
+  geom_line(data = idle, aes(x = ymd(date), y = ET.in))+
+  xlim(ymd(idle$date[1]),newIdleF$dateF[24])+  # Plotting original data
+  geom_line(data = newIdleF, aes(x = dateF, y = Point.Forecast),
+            col="red") +  # Plotting model forecasts
+  geom_ribbon(data=newIdleF, 
+              aes(x=dateF,ymin=Lo.95,
+                  ymax=Hi.95), fill=rgb(0.5,0.5,0.5,0.5))+ # uncertainty interval
+  theme_classic()+
+  labs(x="Year", y="Evapotranspiration (in)",
+       title="Predicted average evapotranspiration (in) for idle fields")
+
